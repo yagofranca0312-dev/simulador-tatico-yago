@@ -51,6 +51,13 @@
       text-align: center;
     }
 
+    #status {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #b5e0ff;
+      text-align: center;
+    }
+
     #slot-buttons {
       margin: 6px 0;
       display: flex;
@@ -136,6 +143,7 @@
         Clique em um slot para CARREGAR. Ajuste os jogadores, depois clique em “Salvar formação no slot atual”.
         As formações ficam salvas no seu navegador para reutilizar depois.
       </div>
+      <div id="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -212,6 +220,7 @@
     let players = defaultPlayers();
     let savedFormations = [];
     let currentSlotIndex = 0;
+    let hasUnsavedChanges = false;
 
     function clonePlayers(list) {
       return list.map(p => ({ ...p }));
@@ -249,6 +258,7 @@
         null
       ];
       updateSlotButtonStyles();
+      updateStatus("Formação 1 carregada.");
     }
 
     function loadFormationFromSlot(index) {
@@ -260,15 +270,20 @@
         savedFormations[index] = clonePlayers(players);
         persistFormations();
       }
+      hasUnsavedChanges = false;
       updateSlotButtonStyles();
+      updateStatus(`Formação ${index + 1} carregada.`);
       render();
     }
 
     function saveFormationToCurrentSlot() {
       savedFormations[currentSlotIndex] = clonePlayers(players);
+      hasUnsavedChanges = false;
       updateSlotButtonStyles();
       persistFormations();
-      console.log("Formação salva no slot", currentSlotIndex + 1);
+      const slotNumber = currentSlotIndex + 1;
+      console.log("Formação salva no slot", slotNumber);
+      updateStatus(`Formação ${slotNumber} salva.`);
     }
 
     function updateSlotButtonStyles() {
@@ -280,6 +295,14 @@
           ? `Formação ${idx + 1} ✓`
           : `Formação ${idx + 1}`;
       });
+    }
+
+    function updateStatus(message) {
+      const status = document.getElementById("status");
+      const dirtyLabel = hasUnsavedChanges && savedFormations[currentSlotIndex]
+        ? " — Alterações não salvas"
+        : "";
+      status.textContent = `${message}${dirtyLabel}`;
     }
 
     document.querySelectorAll(".slot-btn").forEach(btn => {
@@ -389,6 +412,14 @@
 
         ctx.fillStyle = "#ffffff";
         ctx.fillText(p.label, x, y);
+
+        if (p === draggingPlayer) {
+          ctx.beginPath();
+          ctx.strokeStyle = "#ffff7d";
+          ctx.lineWidth = 3;
+          ctx.arc(x, y, PLAYER_RADIUS + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
     }
 
@@ -488,7 +519,9 @@
       draggingPlayer.nx = Math.max(0, Math.min(1, nx));
       draggingPlayer.ny = Math.max(0, Math.min(1, ny));
 
+      hasUnsavedChanges = true;
       render();
+      updateStatus(`Formação ${currentSlotIndex + 1} em edição`);
     });
 
     canvas.addEventListener("mouseup", () => draggingPlayer = null);
@@ -499,6 +532,8 @@
       if (e.key === "r" || e.key === "R") {
         players = defaultPlayers();
         render();
+        hasUnsavedChanges = true;
+        updateStatus(`Formação ${currentSlotIndex + 1} resetada (não salva)`);
       }
 
       if (e.key.toLowerCase() === "c" && e.ctrlKey) {
@@ -508,6 +543,11 @@
           nx: +p.nx.toFixed(3),
           ny: +p.ny.toFixed(3)
         })));
+      }
+
+      if (e.key >= "1" && e.key <= "4") {
+        const slotNumber = parseInt(e.key, 10) - 1;
+        loadFormationFromSlot(slotNumber);
       }
     });
 

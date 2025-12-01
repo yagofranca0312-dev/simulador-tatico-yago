@@ -134,6 +134,7 @@
 
       <div id="slots-hint">
         Clique em um slot para CARREGAR. Ajuste os jogadores, depois clique em “Salvar formação no slot atual”.
+        As formações ficam salvas no seu navegador para reutilizar depois.
       </div>
     </div>
   </div>
@@ -141,6 +142,7 @@
   <script>
     const canvas = document.getElementById("pitch");
     const ctx = canvas.getContext("2d");
+    const STORAGE_KEY = "simuladorTaticoFormationsV1";
 
     const FIELD = {
       marginX: 60,
@@ -215,8 +217,32 @@
       return list.map(p => ({ ...p }));
     }
 
+    function loadPersistedFormations() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+
+        return parsed.map(slot => slot ? clonePlayers(slot) : null);
+      } catch (error) {
+        console.warn("Não foi possível carregar formações salvas.", error);
+        return null;
+      }
+    }
+
+    function persistFormations() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFormations));
+      } catch (error) {
+        console.warn("Não foi possível salvar as formações.", error);
+      }
+    }
+
     function initFormations() {
-      savedFormations = [
+      const restored = loadPersistedFormations();
+      savedFormations = restored ?? [
         clonePlayers(players),
         refinedFormation(),
         null,
@@ -232,6 +258,7 @@
       } else {
         players = defaultPlayers();
         savedFormations[index] = clonePlayers(players);
+        persistFormations();
       }
       updateSlotButtonStyles();
       render();
@@ -240,6 +267,7 @@
     function saveFormationToCurrentSlot() {
       savedFormations[currentSlotIndex] = clonePlayers(players);
       updateSlotButtonStyles();
+      persistFormations();
       console.log("Formação salva no slot", currentSlotIndex + 1);
     }
 
